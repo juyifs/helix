@@ -609,11 +609,6 @@ impl<T: 'static + Send + Sync, D: 'static + Send + Sync> Picker<T, D> {
             kind, row, column, ..
         } = *event;
 
-        // consume event if outside of the area with pickable items
-        if !self.picking_area.intersects(Rect::new(column, row, 1, 1)) {
-            return EventResult::Consumed(None);
-        }
-
         match kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 // picking_area.height > 0 because the mouse position is inside the area
