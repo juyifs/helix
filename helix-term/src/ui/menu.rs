@@ -70,6 +70,12 @@ impl<T: Item> Menu<T> {
         self.recalculate = true;
     }
 
+    pub fn select_first(&mut self) {
+        self.cursor = (!self.matches.is_empty()).then_some(0);
+        self.scroll = 0;
+        self.recalculate = true;
+    }
+
     pub fn update_options(&mut self) -> (&mut Vec<(u32, u32)>, &mut Vec<T>) {
         self.recalculate = true;
         (&mut self.matches, &mut self.options)

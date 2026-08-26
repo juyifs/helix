@@ -316,6 +316,7 @@ impl Completion {
 
         // need to recompute immediately in case start_offset != trigger_offset
         completion.score(false);
+        completion.popup.contents_mut().select_first();
 
         completion
     }
@@ -421,7 +422,7 @@ impl Completion {
             }
         }
         self.score(c.is_some());
-        self.popup.contents_mut().reset_cursor();
+        self.popup.contents_mut().select_first();
     }
 
     pub fn replace_provider_completions(
