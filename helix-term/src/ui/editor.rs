@@ -683,27 +683,49 @@ impl EditorView {
             .try_get("ui.bufferline")
             .unwrap_or_else(|| editor.theme.get("ui.statusline.inactive"));
 
-        let mut x = viewport.x;
         let current_doc = view!(editor).doc;
+        let documents: Vec<_> = editor
+            .documents()
+            .map(|doc| {
+                let fname = doc
+                    .path()
+                    .unwrap_or(&scratch)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default();
+                let text = format!(" {}{} ", fname, if doc.is_modified() { "[+]" } else { "" });
+                (doc, text)
+            })
+            .collect();
+
+        let current_index = documents
+            .iter()
+            .position(|(doc, _)| current_doc == doc.id())
+            .unwrap_or_default();
+        let available_width = surface.area.right().saturating_sub(viewport.x) as usize;
+        let mut first_visible = current_index;
+        let mut visible_width = 0;
+        for index in (0..=current_index).rev() {
+            let width = documents[index].1.width();
+            if index != current_index && visible_width + width > available_width {
+                break;
+            }
+            visible_width += width;
+            first_visible = index;
+        }
+
+        let mut x = viewport.x;
 
         self.bufferline_info.clear();
 
-        for doc in editor.documents() {
-            let fname = doc
-                .path()
-                .unwrap_or(&scratch)
-                .file_name()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or_default();
-
+        for (doc, text) in documents.into_iter().skip(first_visible) {
             let style = if current_doc == doc.id() {
                 bufferline_active
             } else {
                 bufferline_inactive
             };
 
-            let text = format!(" {}{} ", fname, if doc.is_modified() { "[+]" } else { "" });
             let used_width = viewport.x.saturating_sub(x);
             let rem_width = surface.area.width.saturating_sub(used_width);
 
