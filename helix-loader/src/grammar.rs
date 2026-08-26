@@ -595,6 +595,7 @@ fn build_tree_sitter_library(
     for (key, value) in compiler.env() {
         command.env(key, value);
     }
+    set_macos_sdk(&mut command);
 
     command.args(compiler.args());
     // used to delay dropping the temporary object file until after the compilation is complete
@@ -615,6 +616,7 @@ fn build_tree_sitter_library(
                 for (key, value) in compiler.env() {
                     cpp_command.env(key, value);
                 }
+                set_macos_sdk(&mut cpp_command);
                 cpp_command.args(compiler.args());
                 let object_file =
                     library_path.with_file_name(format!("{}_scanner.obj", &grammar.grammar_id));
@@ -667,6 +669,7 @@ fn build_tree_sitter_library(
                 for (key, value) in compiler.env() {
                     cpp_command.env(key, value);
                 }
+                set_macos_sdk(&mut cpp_command);
                 cpp_command.args(compiler.args());
                 let object_file =
                     library_path.with_file_name(format!("{}_scanner.o", &grammar.grammar_id));
@@ -720,6 +723,23 @@ fn build_tree_sitter_library(
 
     Ok(BuildStatus::Built)
 }
+
+#[cfg(target_os = "macos")]
+fn set_macos_sdk(command: &mut Command) {
+    let Ok(output) = Command::new("xcrun")
+        .args(["--sdk", "macosx", "--show-sdk-path"])
+        .output()
+    else {
+        return;
+    };
+    if output.status.success() {
+        let sdk_path = String::from_utf8_lossy(&output.stdout);
+        command.args(["-isysroot", sdk_path.trim()]);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_macos_sdk(_command: &mut Command) {}
 
 fn needs_recompile(
     lib_path: &Path,
