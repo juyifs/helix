@@ -701,13 +701,25 @@ impl Application {
         #[cfg(not(windows))]
         use termina::escape::csi;
 
+        let event = event.unwrap();
+        #[cfg(not(windows))]
+        let focus_gained = matches!(event, termina::Event::FocusIn);
+        #[cfg(windows)]
+        let focus_gained = matches!(event, crossterm::event::Event::FocusGained);
+        if focus_gained {
+            if let Err(error) = self.editor.reload_changed_documents() {
+                self.editor
+                    .set_error(format!("failed to reload changed files: {error}"));
+            }
+        }
+
         let mut cx = crate::compositor::Context {
             editor: &mut self.editor,
             jobs: &mut self.jobs,
             scroll: None,
         };
         // Handle key events
-        let should_redraw = match event.unwrap() {
+        let should_redraw = match event {
             #[cfg(not(windows))]
             termina::Event::WindowResized(termina::WindowSize { rows, cols, .. }) => {
                 self.terminal
@@ -727,6 +739,8 @@ impl Application {
                 kind: termina::event::KeyEventKind::Release,
                 ..
             }) => false,
+            #[cfg(not(windows))]
+            termina::Event::FocusIn => self.compositor.handle_event(&Event::FocusGained, &mut cx),
             #[cfg(not(windows))]
             termina::Event::Csi(csi::Csi::Mode(csi::Mode::ReportTheme(mode))) => {
                 let config = self.config.load();
@@ -764,6 +778,10 @@ impl Application {
                 kind: crossterm::event::KeyEventKind::Release,
                 ..
             }) => false,
+            #[cfg(windows)]
+            crossterm::event::Event::FocusGained => {
+                self.compositor.handle_event(&Event::FocusGained, &mut cx)
+            }
             #[cfg(not(windows))]
             event if event.is_escape() => false,
             event => self.compositor.handle_event(&event.into(), &mut cx),

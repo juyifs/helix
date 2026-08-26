@@ -2358,6 +2358,47 @@ impl Editor {
         self.documents.values_mut()
     }
 
+    pub fn reload_changed_documents(&mut self) -> Result<bool, Error> {
+        let document_ids: Vec<_> = self
+            .documents()
+            .filter(|doc| !doc.is_modified() && doc.is_changed_on_disk())
+            .map(Document::id)
+            .collect();
+        let scrolloff = self.config().scrolloff;
+        let mut reloaded = false;
+
+        for doc_id in document_ids {
+            let view_ids: Vec<_> = self
+                .tree
+                .views()
+                .filter_map(|(view, _)| (view.doc == doc_id).then_some(view.id))
+                .collect();
+            let Some(&view_id) = view_ids.first() else {
+                continue;
+            };
+
+            let trust_full = self
+                .workspace_trust
+                .query(
+                    doc!(self, &doc_id).workspace_root(),
+                    TrustQuery::Git,
+                )
+                .is_trusted();
+            let doc = doc_mut!(self, &doc_id);
+            let view = view_mut!(self, view_id);
+            doc.reload(view, &self.diff_providers, trust_full)?;
+            reloaded = true;
+
+            for view_id in view_ids {
+                let view = view_mut!(self, view_id);
+                view.sync_changes(doc);
+                view.ensure_cursor_in_view(doc, scrolloff);
+            }
+        }
+
+        Ok(reloaded)
+    }
+
     pub fn document_by_path<P: AsRef<Path>>(&self, path: P) -> Option<&Document> {
         self.documents()
             .find(|doc| doc.path().is_some_and(|p| p == path.as_ref()))
