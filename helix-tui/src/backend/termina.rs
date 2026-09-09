@@ -422,6 +422,7 @@ impl Backend for TerminaBackend {
             // things like mosh are buggy. See <https://github.com/helix-editor/helix/pull/1944>.
             Csi::Edit(csi::Edit::EraseInDisplay(csi::EraseInDisplay::EraseDisplay)),
         )?;
+        self.terminal.flush()?;
         if let Some(color) = self.background_color {
             write!(
                 self.terminal,
