@@ -308,6 +308,9 @@ impl Application {
     where
         S: Stream<Item = std::io::Result<TerminalEvent>> + Unpin,
     {
+        let mut file_change_check = tokio::time::interval(std::time::Duration::from_millis(5000));
+        file_change_check.tick().await;
+
         loop {
             if self.editor.should_close() {
                 return false;
@@ -325,6 +328,13 @@ impl Application {
                 }
                 Some(event) = input_stream.next() => {
                     self.handle_terminal_events(event).await;
+                }
+                _ = file_change_check.tick() => {
+                    match self.editor.reload_changed_documents() {
+                        Ok(true) => self.render().await,
+                        Ok(false) => (),
+                        Err(error) => self.editor.set_error(format!("failed to reload changed files: {error}")),
+                    }
                 }
                 Some(callback) = self.jobs.callbacks.recv() => {
                     if let Some(job) = self.jobs.handle_callback(&mut self.editor, &mut self.compositor, Ok(Some(callback))) {
