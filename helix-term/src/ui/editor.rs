@@ -1575,7 +1575,12 @@ impl Component for EditorView {
                                     {
                                         consumed = true;
                                         Some(callback)
-                                    } else if key.char().is_none() && key != key!(Esc) {
+                                    } else if key.char().is_none()
+                                        && !matches!(
+                                            key.code,
+                                            KeyCode::Esc | KeyCode::Backspace | KeyCode::Delete
+                                        )
+                                    {
                                         if let EventResult::Consumed(callback) =
                                             completion.handle_event(&Event::Key(key!(Enter)), &mut cx)
                                         {
